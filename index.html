@@ -3,12 +3,27 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    
+    <!-- PWA & Mobile Setup -->
     <title>TicketApp</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="TicketApp">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#ffffff">
+
+    <!-- App Icon (Data URI for instant loading without external assets) -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%234f46e5' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z'/%3E%3Cpath d='M16 8h-6'/%3E%3Cpath d='M16 12h-6'/%3E%3Cpath d='M10 16h-4'/%3E%3C/svg%3E" />
+    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white' style='background-color: %23111827;'%3E%3Crect width='24' height='24' fill='%23111827'/%3E%3Cpath d='M7 5v14l2.5-1.5L12 19l2.5-1.5L17 19V5l-2.5 1.5L12 5 9.5 6.5 7 5Z' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M10 10h4' stroke='white' stroke-width='2' stroke-linecap='round'/%3E%3Cpath d='M10 14h4' stroke='white' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
       body {
         -webkit-tap-highlight-color: transparent;
         background-color: #f3f4f6;
+        /* Safe area for iPhone X+ */
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
       }
       /* Hide scrollbar for clean mobile look */
       .no-scrollbar::-webkit-scrollbar {
@@ -17,6 +32,14 @@
       .no-scrollbar {
         -ms-overflow-style: none;
         scrollbar-width: none;
+      }
+      /* Smooth transitions */
+      .animate-fade-in {
+        animation: fadeIn 0.2s ease-in-out;
+      }
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
       }
     </style>
   <script type="importmap">
