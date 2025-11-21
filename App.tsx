@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Camera, Plus, Search, ArrowLeft, Trash2, Loader2, ShoppingBag, ChevronRight, ScanLine } from 'lucide-react';
+import { Camera, Plus, Search, ArrowLeft, Trash2, Loader2, Receipt, ChevronRight, ScanLine } from 'lucide-react';
 import { ReceiptData, AnalysisResult } from './types';
 import * as db from './services/db';
 import * as gemini from './services/gemini';
@@ -299,11 +299,11 @@ function App() {
       <div className="px-6 pt-12 pb-6 bg-white sticky top-0 z-10">
         <div className="flex justify-between items-end mb-6">
           <div>
-             <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Ticket<span className="text-indigo-600">Keeper</span></h1>
-             <p className="text-gray-400 font-medium">Tus compras digitales</p>
+             <h1 className="text-3xl font-black text-gray-900 tracking-tighter">Ticket<span className="text-indigo-600">App</span></h1>
+             <p className="text-gray-400 font-medium text-sm">Tus compras, organizadas.</p>
           </div>
-          <div className="bg-gray-100 p-2 rounded-full">
-             <ShoppingBag className="text-gray-600 w-6 h-6" />
+          <div className="w-11 h-11 bg-gray-900 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-200 transform -rotate-3">
+             <Receipt className="w-6 h-6 text-white" strokeWidth={2} />
           </div>
         </div>
 
@@ -324,7 +324,7 @@ function App() {
       <div className="px-4 pt-4 flex-1">
         {storeNames.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-gray-400 opacity-60">
-            <ShoppingBag className="w-20 h-20 mb-4 text-gray-300" />
+            <Receipt className="w-20 h-20 mb-4 text-gray-300" />
             <p className="text-lg font-medium">Sin compras</p>
             <p className="text-sm">Añade tu primer ticket</p>
           </div>
@@ -361,7 +361,7 @@ function App() {
 
       {/* Floating Action Button */}
       <div className="fixed bottom-6 left-0 right-0 flex justify-center z-20 pointer-events-none">
-        <div className="pointer-events-auto shadow-2xl rounded-full">
+        <div className="pointer-events-auto shadow-2xl shadow-indigo-300/50 rounded-full">
           <button 
             onClick={() => fileInputRef.current?.click()}
             className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-full w-16 h-16 flex items-center justify-center transform transition-transform hover:scale-105 active:scale-95"

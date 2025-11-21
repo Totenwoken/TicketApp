@@ -1,5 +1,5 @@
 {
-  "name": "TicketKeeper",
+  "name": "TicketApp",
   "description": "Digitize, organize, and redeem your physical store receipts using AI.",
   "requestFramePermissions": [
     "camera"
