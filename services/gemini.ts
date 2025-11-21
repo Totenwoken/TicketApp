@@ -1,11 +1,24 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { AnalysisResult, Category } from "../types";
 
-// Initialize Gemini Client
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Helper to get AI instance safely only when needed
+const getAI = () => {
+  // @ts-ignore: process.env is replaced by Vite at build time
+  const apiKey = process.env.API_KEY;
+  
+  if (!apiKey) {
+    console.error("API_KEY is missing. Please configure it in your environment variables.");
+    throw new Error("API Key no configurada. Revisa la configuración de Vercel.");
+  }
+  
+  return new GoogleGenAI({ apiKey });
+};
 
 export const analyzeReceiptImage = async (base64Image: string): Promise<AnalysisResult> => {
   try {
+    // Initialize AI here instead of top-level to prevent app crash on load
+    const ai = getAI();
+
     // Remove header if present
     const cleanBase64 = base64Image.split(',')[1] || base64Image;
 
