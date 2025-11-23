@@ -15,9 +15,10 @@
     <!-- Manifest for Android/PWA -->
     <link rel="manifest" href="/manifest.json">
 
-    <!-- App Icon -->
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%234f46e5' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z'/%3E%3Cpath d='M16 8h-6'/%3E%3Cpath d='M16 12h-6'/%3E%3Cpath d='M10 16h-4'/%3E%3C/svg%3E" />
-    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white' style='background-color: %23111827;'%3E%3Crect width='24' height='24' fill='%23111827'/%3E%3Cpath d='M7 5v14l2.5-1.5L12 19l2.5-1.5L17 19V5l-2.5 1.5L12 5 9.5 6.5 7 5Z' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M10 10h4' stroke='white' stroke-width='2' stroke-linecap='round'/%3E%3Cpath d='M10 14h4' stroke='white' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
+    <!-- App Icon - Standard & iOS -->
+    <!-- Usamos el PNG externo para asegurar compatibilidad con iOS que a veces falla con Data URIs -->
+    <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/10606/10606037.png" />
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/10606/10606037.png">
 
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -48,13 +49,13 @@
 <script type="importmap">
 {
   "imports": {
-    "vite": "https://aistudiocdn.com/vite@^7.2.4",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1",
-    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.554.0",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
     "react/": "https://aistudiocdn.com/react@^19.2.0/",
-    "react": "https://aistudiocdn.com/react@^19.2.0"
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.554.0",
+    "vite": "https://aistudiocdn.com/vite@^7.2.4",
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1"
   }
 }
 </script>
