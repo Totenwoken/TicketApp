@@ -32,3 +32,10 @@ export interface AnalysisResult {
   barcodeValue?: string;
   summary?: string;
 }
+
+export interface User {
+  email: string;
+  passwordHash: string;
+  name: string;
+  createdAt: number;
+}

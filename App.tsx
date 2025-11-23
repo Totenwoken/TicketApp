@@ -1,38 +1,52 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Camera, Plus, Search, ArrowLeft, Trash2, Receipt, ChevronRight, ScanLine, Download, X, Share } from 'lucide-react';
-import { ReceiptData, AnalysisResult } from './types';
+import { Camera, Plus, Search, ArrowLeft, Trash2, Receipt, ChevronRight, ScanLine, Download, X, Share, Database, Lock, User as UserIcon, LogOut, CheckCircle, Eye, EyeOff } from 'lucide-react';
+import { ReceiptData, AnalysisResult, User } from './types';
 import * as db from './services/db';
 import * as gemini from './services/gemini';
+import * as auth from './services/auth';
 import ReceiptCard from './components/ReceiptCard';
 
 // --- Views Management ---
-type ViewMode = 'DASHBOARD' | 'STORE_DETAIL' | 'RECEIPT_DETAIL';
+type ViewMode = 'AUTH' | 'DASHBOARD' | 'STORE_DETAIL' | 'RECEIPT_DETAIL';
+type AuthMode = 'LOGIN' | 'REGISTER';
 
 function App() {
-  const [view, setView] = useState<ViewMode>('DASHBOARD');
+  const [view, setView] = useState<ViewMode>('AUTH');
+  const [user, setUser] = useState<User | null>(null);
+
+  // Data State
   const [receipts, setReceipts] = useState<ReceiptData[]>([]);
   
   // Navigation State
   const [selectedStoreName, setSelectedStoreName] = useState<string | null>(null);
   const [selectedReceipt, setSelectedReceipt] = useState<ReceiptData | null>(null);
   
+  // UI State
   const [isProcessing, setIsProcessing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  
-  // Install Prompt State
   const [showInstallModal, setShowInstallModal] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
+  
+  // Auth Form State
+  const [authMode, setAuthMode] = useState<AuthMode>('LOGIN');
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPass, setAuthPass] = useState('');
+  const [authName, setAuthName] = useState('');
+  const [authError, setAuthError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    loadReceipts();
     // Check if running in standalone mode (installed)
     const checkStandalone = () => {
       const isStd = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
       setIsStandalone(isStd);
     };
     checkStandalone();
+    
+    // Check local storage for simple session persistence (optional, for now we force login on refresh for security as requested implicitly by "secure")
+    // If you wanted persistent login: const savedUser = localStorage.getItem('userEmail'); ...
   }, []);
 
   const loadReceipts = async () => {
@@ -42,6 +56,59 @@ function App() {
     } catch (error) {
       console.error("Error loading receipts", error);
     }
+  };
+
+  // --- Auth Handlers ---
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError('');
+    setIsProcessing(true);
+    try {
+      const loggedUser = await auth.login(authEmail, authPass);
+      setUser(loggedUser);
+      await loadReceipts();
+      setView('DASHBOARD');
+      // Clear sensitive fields
+      setAuthPass(''); 
+    } catch (err: any) {
+      setAuthError(err.message || "Error al iniciar sesión");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError('');
+    
+    // Validar regex visualmente antes de enviar
+    if (!auth.PASSWORD_REGEX.test(authPass)) {
+      setAuthError("La contraseña no es segura.");
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      const newUser = await auth.register(authName, authEmail, authPass);
+      setUser(newUser);
+      await loadReceipts();
+      setView('DASHBOARD');
+      setAuthPass('');
+    } catch (err: any) {
+      setAuthError(err.message || "Error al registrarse");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    setReceipts([]);
+    setView('AUTH');
+    setAuthEmail('');
+    setAuthPass('');
+    setAuthMode('LOGIN');
   };
 
   // --- Logic: Grouping & Sorting ---
@@ -68,12 +135,58 @@ function App() {
     const website = group.find(r => r.website)?.website;
     
     if (website) {
-      // Use Google's favicon service (reliable and free)
       return `https://www.google.com/s2/favicons?domain=${website}&sz=128`;
     }
-    
-    // Fallback: Clearbit API guess or just return null for placeholder
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(storeName)}&background=random&color=fff&size=128`;
+  };
+
+  // --- Utilities ---
+
+  // Compress image to ensure IndexedDB doesn't hit quota limits with large camera photos
+  const compressImage = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_DIM = 1024; // Sufficient for OCR, keeps storage light
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_DIM) {
+              height *= MAX_DIM / width;
+              width = MAX_DIM;
+            }
+          } else {
+            if (height > MAX_DIM) {
+              width *= MAX_DIM / height;
+              height = MAX_DIM;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error('Canvas context missing'));
+            return;
+          }
+          // White background for transparent PNGs
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(0, 0, width, height);
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          // Compress to JPEG 60% quality
+          resolve(canvas.toDataURL('image/jpeg', 0.6));
+        };
+        img.onerror = (error) => reject(error);
+      };
+      reader.onerror = (error) => reject(error);
+    });
   };
 
   // --- Handlers ---
@@ -85,19 +198,17 @@ function App() {
     setIsProcessing(true);
     
     try {
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
+      // 1. Compress Image
+      const base64 = await compressImage(file);
 
+      // 2. Analyze with AI
       const analysis: AnalysisResult = await gemini.analyzeReceiptImage(base64);
 
+      // 3. Save to DB
       const newReceipt: ReceiptData = {
         id: crypto.randomUUID(),
         ...analysis,
-        imageBase64: base64,
+        imageBase64: base64, // Storing the compressed version
         createdAt: Date.now()
       };
 
@@ -137,15 +248,158 @@ function App() {
   // --- Renderers ---
 
   const renderLoader = () => (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex flex-col items-center justify-center z-50 text-white p-8 text-center">
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex flex-col items-center justify-center z-[70] text-white p-8 text-center">
       <div className="relative">
         <div className="absolute inset-0 bg-indigo-500 blur-xl opacity-20 animate-pulse"></div>
         <ScanLine className="w-16 h-16 mb-6 text-indigo-400 animate-bounce" />
       </div>
-      <h3 className="text-2xl font-bold mb-2">Digitalizando</h3>
-      <p className="text-gray-300 text-sm max-w-xs">La IA está extrayendo datos, buscando el logo y organizando tu compra...</p>
+      <h3 className="text-2xl font-bold mb-2">Procesando</h3>
+      <p className="text-gray-300 text-sm max-w-xs">Esto tomará solo unos segundos...</p>
     </div>
   );
+
+  const renderAuth = () => {
+    const isLogin = authMode === 'LOGIN';
+    
+    // Password validation visual checks
+    const hasUpper = /[A-Z]/.test(authPass);
+    const hasLower = /[a-z]/.test(authPass);
+    const hasNumber = /\d/.test(authPass);
+    const hasSpecial = /[\W_]/.test(authPass);
+    const hasLength = authPass.length >= 8;
+    const isPassValid = hasUpper && hasLower && hasNumber && hasSpecial && hasLength;
+
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col justify-center px-6 py-12 lg:px-8">
+        <div className="sm:mx-auto sm:w-full sm:max-w-sm">
+           <div className="w-16 h-16 bg-indigo-600 rounded-2xl mx-auto mb-6 flex items-center justify-center text-white shadow-lg shadow-indigo-200">
+             <Receipt className="w-8 h-8" strokeWidth={2.5} />
+           </div>
+           <h2 className="text-center text-3xl font-black leading-9 tracking-tight text-gray-900">
+             Ticket<span className="text-indigo-600">App</span>
+           </h2>
+           <p className="mt-2 text-center text-sm text-gray-500">
+             {isLogin ? 'Inicia sesión para ver tus tickets' : 'Crea tu cuenta segura'}
+           </p>
+        </div>
+
+        <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
+          <form className="space-y-6" onSubmit={isLogin ? handleLogin : handleRegister}>
+            {!isLogin && (
+              <div>
+                <label className="block text-sm font-medium leading-6 text-gray-900">Nombre</label>
+                <div className="mt-2 relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <UserIcon className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    type="text"
+                    required={!isLogin}
+                    value={authName}
+                    onChange={e => setAuthName(e.target.value)}
+                    className="block w-full rounded-xl border-0 py-3 pl-10 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                    placeholder="Tu nombre"
+                  />
+                </div>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium leading-6 text-gray-900">Email</label>
+              <div className="mt-2 relative">
+                <input
+                  type="email"
+                  required
+                  value={authEmail}
+                  onChange={e => setAuthEmail(e.target.value)}
+                  className="block w-full rounded-xl border-0 py-3 pl-4 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                  placeholder="ejemplo@email.com"
+                />
+              </div>
+            </div>
+
+            <div>
+               <div className="flex items-center justify-between">
+                <label className="block text-sm font-medium leading-6 text-gray-900">Contraseña</label>
+              </div>
+              <div className="mt-2 relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Lock className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  type={showPassword ? "text" : "password"}
+                  required
+                  value={authPass}
+                  onChange={e => setAuthPass(e.target.value)}
+                  className="block w-full rounded-xl border-0 py-3 pl-10 pr-10 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                  placeholder="********"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                >
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
+              </div>
+
+              {/* Password Requirements UI (Only on Register) */}
+              {!isLogin && authPass.length > 0 && (
+                <div className="mt-3 bg-white p-3 rounded-lg border border-gray-100 shadow-sm text-xs space-y-1">
+                   <p className="font-semibold text-gray-500 mb-2">La contraseña debe contener:</p>
+                   <div className={`flex items-center ${hasLower ? 'text-green-600' : 'text-gray-400'}`}>
+                      <CheckCircle className="w-3 h-3 mr-1.5" /> 1 minúscula
+                   </div>
+                   <div className={`flex items-center ${hasUpper ? 'text-green-600' : 'text-gray-400'}`}>
+                      <CheckCircle className="w-3 h-3 mr-1.5" /> 1 mayúscula
+                   </div>
+                   <div className={`flex items-center ${hasNumber ? 'text-green-600' : 'text-gray-400'}`}>
+                      <CheckCircle className="w-3 h-3 mr-1.5" /> 1 número
+                   </div>
+                   <div className={`flex items-center ${hasSpecial ? 'text-green-600' : 'text-gray-400'}`}>
+                      <CheckCircle className="w-3 h-3 mr-1.5" /> 1 símbolo (!@#$...)
+                   </div>
+                   <div className={`flex items-center ${hasLength ? 'text-green-600' : 'text-gray-400'}`}>
+                      <CheckCircle className="w-3 h-3 mr-1.5" /> Mínimo 8 caracteres
+                   </div>
+                </div>
+              )}
+            </div>
+
+            {authError && (
+              <div className="text-red-500 text-sm font-medium bg-red-50 p-3 rounded-lg text-center animate-fade-in">
+                {authError}
+              </div>
+            )}
+
+            <div>
+              <button
+                type="submit"
+                disabled={!isLogin && !isPassValid}
+                className="flex w-full justify-center rounded-xl bg-indigo-600 px-3 py-3 text-sm font-semibold leading-6 text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                {isLogin ? 'Entrar' : 'Registrarse'}
+              </button>
+            </div>
+          </form>
+
+          <p className="mt-10 text-center text-sm text-gray-500">
+            {isLogin ? '¿No tienes cuenta? ' : '¿Ya tienes cuenta? '}
+            <button 
+              onClick={() => {
+                setAuthMode(isLogin ? 'REGISTER' : 'LOGIN');
+                setAuthError('');
+                setAuthPass('');
+              }}
+              className="font-semibold leading-6 text-indigo-600 hover:text-indigo-500"
+            >
+              {isLogin ? 'Regístrate aquí' : 'Inicia sesión'}
+            </button>
+          </p>
+        </div>
+      </div>
+    );
+  };
 
   const renderInstallModal = () => (
     <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 animate-fade-in" onClick={() => setShowInstallModal(false)}>
@@ -162,7 +416,7 @@ function App() {
             <Receipt className="w-8 h-8" strokeWidth={2.5} />
           </div>
           <h2 className="text-xl font-bold text-gray-900">Instalar App</h2>
-          <p className="text-gray-500 text-sm mt-1">Lleva tus tickets siempre contigo.</p>
+          <p className="text-gray-500 text-sm mt-1">Tus tickets se guardarán en este teléfono.</p>
         </div>
 
         <div className="space-y-4">
@@ -362,7 +616,7 @@ function App() {
         <div className="flex justify-between items-center mb-6">
           <div>
              <h1 className="text-3xl font-black text-gray-900 tracking-tighter">Ticket<span className="text-indigo-600">App</span></h1>
-             <p className="text-gray-400 font-medium text-sm">Tus compras, organizadas.</p>
+             <p className="text-gray-400 font-medium text-sm">Hola, <span className="text-indigo-600 font-bold">{user?.name}</span></p>
           </div>
           
           <div className="flex items-center gap-2">
@@ -375,9 +629,13 @@ function App() {
                 Instalar
               </button>
             )}
-            <div className="w-11 h-11 bg-gray-900 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-200 transform -rotate-3">
-               <Receipt className="w-6 h-6 text-white" strokeWidth={2} />
-            </div>
+             <button 
+                onClick={handleLogout}
+                className="bg-gray-100 text-gray-600 p-2.5 rounded-xl flex items-center hover:bg-red-50 hover:text-red-600 transition-colors"
+                title="Cerrar Sesión"
+              >
+                <LogOut className="w-5 h-5" />
+              </button>
           </div>
         </div>
 
@@ -398,9 +656,12 @@ function App() {
       <div className="px-4 pt-4 flex-1">
         {storeNames.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-gray-400 opacity-60">
-            <Receipt className="w-20 h-20 mb-4 text-gray-300" />
-            <p className="text-lg font-medium">Sin compras</p>
-            <p className="text-sm">Añade tu primer ticket</p>
+            <div className="relative">
+               <div className="absolute inset-0 bg-indigo-200 blur-2xl opacity-30"></div>
+               <Database className="w-20 h-20 mb-4 text-gray-300 relative" />
+            </div>
+            <p className="text-lg font-medium text-gray-500">Sin tickets guardados</p>
+            <p className="text-sm text-center max-w-[200px] mt-2">Sube una foto. Los tickets se guardarán en este dispositivo.</p>
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-4">
@@ -439,6 +700,7 @@ function App() {
           <button 
             onClick={() => fileInputRef.current?.click()}
             className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-full w-16 h-16 flex items-center justify-center transform transition-transform hover:scale-105 active:scale-95"
+            aria-label="Escanear o subir ticket"
           >
             <Camera className="w-7 h-7" />
           </button>
@@ -462,6 +724,7 @@ function App() {
       {showInstallModal && renderInstallModal()}
       {isProcessing && renderLoader()}
       
+      {view === 'AUTH' && renderAuth()}
       {view === 'DASHBOARD' && renderDashboard()}
       {view === 'STORE_DETAIL' && renderStoreDetail()}
       {view === 'RECEIPT_DETAIL' && renderReceiptDetail()}
