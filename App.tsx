@@ -448,8 +448,7 @@ function App() {
       <input 
         type="file" 
         ref={fileInputRef}
-        accept="image/*" 
-        capture="environment"
+        accept="image/*"
         className="hidden"
         onChange={handleFileSelect}
       />
