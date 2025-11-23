@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Camera, Plus, Search, ArrowLeft, Trash2, Loader2, Receipt, ChevronRight, ScanLine } from 'lucide-react';
+import { Camera, Plus, Search, ArrowLeft, Trash2, Loader2, Receipt, ChevronRight, ScanLine, Download, X, Share } from 'lucide-react';
 import { ReceiptData, AnalysisResult } from './types';
 import * as db from './services/db';
 import * as gemini from './services/gemini';
@@ -19,10 +19,20 @@ function App() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   
+  // Install Prompt State
+  const [showInstallModal, setShowInstallModal] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     loadReceipts();
+    // Check if running in standalone mode (installed)
+    const checkStandalone = () => {
+      const isStd = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
+      setIsStandalone(isStd);
+    };
+    checkStandalone();
   }, []);
 
   const loadReceipts = async () => {
@@ -134,6 +144,58 @@ function App() {
       </div>
       <h3 className="text-2xl font-bold mb-2">Digitalizando</h3>
       <p className="text-gray-300 text-sm max-w-xs">La IA está extrayendo datos, buscando el logo y organizando tu compra...</p>
+    </div>
+  );
+
+  const renderInstallModal = () => (
+    <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 animate-fade-in" onClick={() => setShowInstallModal(false)}>
+      <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl relative" onClick={e => e.stopPropagation()}>
+        <button 
+          onClick={() => setShowInstallModal(false)}
+          className="absolute top-4 right-4 p-1 bg-gray-100 rounded-full text-gray-500"
+        >
+          <X className="w-5 h-5" />
+        </button>
+        
+        <div className="text-center mb-6">
+          <div className="w-16 h-16 bg-indigo-600 rounded-2xl mx-auto mb-4 flex items-center justify-center text-white shadow-lg">
+            <Receipt className="w-8 h-8" strokeWidth={2.5} />
+          </div>
+          <h2 className="text-xl font-bold text-gray-900">Instalar App</h2>
+          <p className="text-gray-500 text-sm mt-1">Lleva tus tickets siempre contigo.</p>
+        </div>
+
+        <div className="space-y-4">
+          <div className="bg-gray-50 p-4 rounded-xl flex items-start">
+             <span className="bg-gray-200 text-gray-700 font-bold w-6 h-6 rounded flex items-center justify-center mr-3 text-xs shrink-0">1</span>
+             <div>
+               <p className="text-sm font-semibold text-gray-800">En iPhone (Safari)</p>
+               <p className="text-xs text-gray-500 mt-1">
+                 Pulsa el botón <span className="inline-block"><Share className="w-3 h-3 inline" /> Compartir</span> y elige <br/>
+                 <span className="font-bold text-gray-700">"Añadir a pantalla de inicio"</span>.
+               </p>
+             </div>
+          </div>
+          
+          <div className="bg-gray-50 p-4 rounded-xl flex items-start">
+             <span className="bg-gray-200 text-gray-700 font-bold w-6 h-6 rounded flex items-center justify-center mr-3 text-xs shrink-0">2</span>
+             <div>
+               <p className="text-sm font-semibold text-gray-800">En Android (Chrome)</p>
+               <p className="text-xs text-gray-500 mt-1">
+                 Pulsa los <span className="font-bold text-gray-700">3 puntos</span> del menú y elige <br/>
+                 <span className="font-bold text-gray-700">"Instalar aplicación"</span>.
+               </p>
+             </div>
+          </div>
+        </div>
+        
+        <button 
+          onClick={() => setShowInstallModal(false)}
+          className="w-full mt-6 bg-gray-900 text-white py-3 rounded-xl font-medium"
+        >
+          Entendido
+        </button>
+      </div>
     </div>
   );
 
@@ -297,13 +359,25 @@ function App() {
     <div className="min-h-screen bg-[#f8f9fa] flex flex-col pb-24">
       {/* Minimal Header */}
       <div className="px-6 pt-12 pb-6 bg-white sticky top-0 z-10">
-        <div className="flex justify-between items-end mb-6">
+        <div className="flex justify-between items-center mb-6">
           <div>
              <h1 className="text-3xl font-black text-gray-900 tracking-tighter">Ticket<span className="text-indigo-600">App</span></h1>
              <p className="text-gray-400 font-medium text-sm">Tus compras, organizadas.</p>
           </div>
-          <div className="w-11 h-11 bg-gray-900 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-200 transform -rotate-3">
-             <Receipt className="w-6 h-6 text-white" strokeWidth={2} />
+          
+          <div className="flex items-center gap-2">
+            {!isStandalone && (
+              <button 
+                onClick={() => setShowInstallModal(true)}
+                className="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center hover:bg-indigo-100 transition-colors"
+              >
+                <Download className="w-4 h-4 mr-1.5" />
+                Instalar
+              </button>
+            )}
+            <div className="w-11 h-11 bg-gray-900 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-200 transform -rotate-3">
+               <Receipt className="w-6 h-6 text-white" strokeWidth={2} />
+            </div>
           </div>
         </div>
 
@@ -386,6 +460,7 @@ function App() {
 
   return (
     <>
+      {showInstallModal && renderInstallModal()}
       {isProcessing && renderLoader()}
       
       {view === 'DASHBOARD' && renderDashboard()}
