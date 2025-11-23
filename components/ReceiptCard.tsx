@@ -1,6 +1,6 @@
 import React from 'react';
 import { ReceiptData } from '../types';
-import { ChevronRight, Calendar } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 
 interface ReceiptCardProps {
   receipt: ReceiptData;

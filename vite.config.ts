@@ -1,9 +1,12 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
+// Declaration to fix "Cannot find name 'process'" error in environments without @types/node globally available in the config context
+declare const process: any;
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, (process as any).cwd(), '');
+  const env = loadEnv(mode, process.cwd(), '');
   return {
     plugins: [react()],
     base: '/', // Ensures assets are loaded correctly from root

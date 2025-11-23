@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Camera, Plus, Search, ArrowLeft, Trash2, Loader2, Receipt, ChevronRight, ScanLine, Download, X, Share } from 'lucide-react';
+import { Camera, Plus, Search, ArrowLeft, Trash2, Receipt, ChevronRight, ScanLine, Download, X, Share } from 'lucide-react';
 import { ReceiptData, AnalysisResult } from './types';
 import * as db from './services/db';
 import * as gemini from './services/gemini';
