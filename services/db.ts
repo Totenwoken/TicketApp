@@ -1,7 +1,7 @@
 import { ReceiptData, User } from '../types';
 
 const DB_NAME = 'TicketKeeperDB';
-const DB_VERSION = 4; // Incremented to add updateUser support logic if needed
+const DB_VERSION = 4;
 
 const openDB = (): Promise<IDBDatabase> => {
   return new Promise((resolve, reject) => {
@@ -91,18 +91,21 @@ export const createUser = async (user: User): Promise<void> => {
     const transaction = db.transaction(['users'], 'readwrite');
     const store = transaction.objectStore('users');
     
-    const checkRequest = store.get(user.email);
+    // Attempt add directly. If it fails, we handle the error.
+    // This avoids race conditions between get() and add()
+    const request = store.add(user);
+
+    request.onsuccess = () => resolve();
     
-    checkRequest.onsuccess = () => {
-      if (checkRequest.result) {
+    request.onerror = (event) => {
+      // ConstraintError means the key (email) already exists
+      if (request.error && request.error.name === 'ConstraintError') {
         reject(new Error("El usuario ya existe"));
       } else {
-        const addRequest = store.add(user);
-        addRequest.onsuccess = () => resolve();
-        addRequest.onerror = () => reject(addRequest.error);
+        console.error("Error creating user DB:", request.error);
+        reject(request.error);
       }
     };
-    checkRequest.onerror = () => reject(checkRequest.error);
   });
 };
 
@@ -111,7 +114,7 @@ export const updateUser = async (user: User): Promise<void> => {
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(['users'], 'readwrite');
     const store = transaction.objectStore('users');
-    const request = store.put(user); // Put updates existing if key matches
+    const request = store.put(user); 
 
     request.onsuccess = () => resolve();
     request.onerror = () => reject(request.error);
