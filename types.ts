@@ -10,6 +10,7 @@ export enum Category {
 
 export interface ReceiptData {
   id: string;
+  userEmail: string; // Owner of the receipt
   storeName: string; // Normalized name (e.g. "ZARA")
   website?: string; // For logo fetching (e.g. "zara.com")
   totalAmount: number;

@@ -1,7 +1,7 @@
 import { ReceiptData, User } from '../types';
 
 const DB_NAME = 'TicketKeeperDB';
-const DB_VERSION = 2; // Incremented version to add users store
+const DB_VERSION = 3; // Incremented to add userEmail index
 
 const openDB = (): Promise<IDBDatabase> => {
   return new Promise((resolve, reject) => {
@@ -9,14 +9,23 @@ const openDB = (): Promise<IDBDatabase> => {
 
     request.onupgradeneeded = (event) => {
       const db = (event.target as IDBOpenDBRequest).result;
+      const transaction = (event.target as IDBOpenDBRequest).transaction;
       
       // Store for Receipts
+      let receiptStore;
       if (!db.objectStoreNames.contains('receipts')) {
-        const store = db.createObjectStore('receipts', { keyPath: 'id' });
-        store.createIndex('createdAt', 'createdAt', { unique: false });
+        receiptStore = db.createObjectStore('receipts', { keyPath: 'id' });
+        receiptStore.createIndex('createdAt', 'createdAt', { unique: false });
+      } else {
+        receiptStore = transaction?.objectStore('receipts');
       }
 
-      // Store for Users (New in v2)
+      // Add userEmail index if it doesn't exist (Migration logic)
+      if (receiptStore && !receiptStore.indexNames.contains('userEmail')) {
+        receiptStore.createIndex('userEmail', 'userEmail', { unique: false });
+      }
+
+      // Store for Users
       if (!db.objectStoreNames.contains('users')) {
         db.createObjectStore('users', { keyPath: 'email' });
       }
@@ -46,17 +55,20 @@ export const saveReceipt = async (receipt: ReceiptData): Promise<void> => {
   });
 };
 
-export const getAllReceipts = async (): Promise<ReceiptData[]> => {
+// Now filters by the logged-in user's email
+export const getReceiptsByUser = async (userEmail: string): Promise<ReceiptData[]> => {
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(['receipts'], 'readonly');
     const store = transaction.objectStore('receipts');
-    const index = store.index('createdAt');
-    const request = index.getAll();
+    const index = store.index('userEmail');
+    const request = index.getAll(IDBKeyRange.only(userEmail));
 
     request.onsuccess = () => {
       const results = request.result as ReceiptData[];
-      resolve(results.reverse()); // Newest first
+      // Sort by date (newest first) in memory since we used the email index
+      results.sort((a, b) => b.createdAt - a.createdAt);
+      resolve(results);
     };
     request.onerror = () => reject(request.error);
   });
@@ -82,7 +94,6 @@ export const createUser = async (user: User): Promise<void> => {
     const transaction = db.transaction(['users'], 'readwrite');
     const store = transaction.objectStore('users');
     
-    // Check if email exists first (though keyPath handles uniqueness, we want a clean error)
     const checkRequest = store.get(user.email);
     
     checkRequest.onsuccess = () => {

@@ -44,19 +44,27 @@ function App() {
       setIsStandalone(isStd);
     };
     checkStandalone();
-    
-    // Check local storage for simple session persistence (optional, for now we force login on refresh for security as requested implicitly by "secure")
-    // If you wanted persistent login: const savedUser = localStorage.getItem('userEmail'); ...
   }, []);
 
   const loadReceipts = async () => {
+    if (!user) return;
     try {
-      const data = await db.getAllReceipts();
+      // Now fetching only for the logged-in user
+      const data = await db.getReceiptsByUser(user.email);
       setReceipts(data);
     } catch (error) {
       console.error("Error loading receipts", error);
     }
   };
+
+  // Reload receipts whenever user changes (login)
+  useEffect(() => {
+    if (user) {
+      loadReceipts();
+    } else {
+      setReceipts([]);
+    }
+  }, [user]);
 
   // --- Auth Handlers ---
 
@@ -67,9 +75,8 @@ function App() {
     try {
       const loggedUser = await auth.login(authEmail, authPass);
       setUser(loggedUser);
-      await loadReceipts();
+      // loadReceipts will trigger by useEffect
       setView('DASHBOARD');
-      // Clear sensitive fields
       setAuthPass(''); 
     } catch (err: any) {
       setAuthError(err.message || "Error al iniciar sesión");
@@ -92,7 +99,6 @@ function App() {
     try {
       const newUser = await auth.register(authName, authEmail, authPass);
       setUser(newUser);
-      await loadReceipts();
       setView('DASHBOARD');
       setAuthPass('');
     } catch (err: any) {
@@ -109,6 +115,7 @@ function App() {
     setAuthEmail('');
     setAuthPass('');
     setAuthMode('LOGIN');
+    setAuthError('');
   };
 
   // --- Logic: Grouping & Sorting ---
@@ -193,7 +200,7 @@ function App() {
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) return;
+    if (!file || !user) return; // Guard clause for user
 
     setIsProcessing(true);
     
@@ -207,6 +214,7 @@ function App() {
       // 3. Save to DB
       const newReceipt: ReceiptData = {
         id: crypto.randomUUID(),
+        userEmail: user.email, // Assign ownership
         ...analysis,
         imageBase64: base64, // Storing the compressed version
         createdAt: Date.now()
@@ -343,7 +351,6 @@ function App() {
                 </button>
               </div>
 
-              {/* Password Requirements UI (Only on Register) */}
               {!isLogin && authPass.length > 0 && (
                 <div className="mt-3 bg-white p-3 rounded-lg border border-gray-100 shadow-sm text-xs space-y-1">
                    <p className="font-semibold text-gray-500 mb-2">La contraseña debe contener:</p>
@@ -474,10 +481,8 @@ function App() {
 
         <div className="flex-1 p-4 flex flex-col items-center justify-start overflow-y-auto pb-20">
           
-          {/* The Ticket "Pass" */}
           <div className="w-full max-w-md bg-white rounded-3xl overflow-hidden shadow-2xl">
             
-            {/* Header Brand */}
             <div className="bg-gray-50 p-6 border-b border-gray-100 text-center">
               <img 
                 src={getStoreLogo(selectedReceipt.storeName)} 
@@ -489,7 +494,6 @@ function App() {
               <p className="text-gray-500 text-sm">{selectedReceipt.category}</p>
             </div>
 
-            {/* QR Area */}
             <div className="p-8 flex flex-col items-center bg-white">
               <div className="bg-white p-2 border-4 border-gray-900 rounded-xl">
                 <img src={qrUrl} alt="QR" className="w-56 h-56 mix-blend-multiply" />
@@ -498,14 +502,12 @@ function App() {
               <p className="text-xs text-gray-400 mt-1 text-center max-w-[200px]">Muestra este código en caja para devoluciones</p>
             </div>
 
-            {/* Cut Line */}
             <div className="relative h-8 bg-gray-50 w-full overflow-hidden flex items-center">
               <div className="absolute -left-4 w-8 h-8 rounded-full bg-gray-900"></div>
               <div className="w-full border-t-2 border-dashed border-gray-300 mx-4"></div>
               <div className="absolute -right-4 w-8 h-8 rounded-full bg-gray-900"></div>
             </div>
 
-            {/* Details */}
             <div className="p-6 bg-gray-50 space-y-4">
                <div className="flex justify-between items-end">
                  <div>
@@ -526,7 +528,6 @@ function App() {
                )}
             </div>
 
-            {/* Toggle Real Image */}
             <div className="bg-gray-100 p-4 border-t border-gray-200">
               <details className="group">
                 <summary className="flex items-center justify-center cursor-pointer list-none text-sm font-semibold text-gray-600 hover:text-gray-900">
@@ -549,7 +550,6 @@ function App() {
     if (!selectedStoreName) return null;
 
     const storeReceipts = groupedReceipts[selectedStoreName] || [];
-    // Sort by Purchase Date Descending (Newest purchase first)
     const sortedReceipts = [...storeReceipts].sort((a, b) => 
       new Date(b.date).getTime() - new Date(a.date).getTime()
     );
@@ -559,7 +559,6 @@ function App() {
 
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col">
-         {/* Header */}
          <div className="bg-white sticky top-0 z-10 shadow-sm">
             <div className="px-4 h-16 flex items-center">
               <button onClick={() => setView('DASHBOARD')} className="p-2 -ml-2 rounded-full hover:bg-gray-100">
@@ -572,7 +571,6 @@ function App() {
             </div>
          </div>
 
-         {/* Store Info Hero */}
          <div className="bg-white px-6 py-8 flex flex-col items-center border-b border-gray-100">
              <img 
                 src={logoUrl} 
@@ -584,7 +582,6 @@ function App() {
              <p className="text-3xl font-bold text-gray-900 mt-1">{totalSpent.toFixed(2)} € <span className="text-sm text-gray-400 font-normal">total</span></p>
          </div>
 
-         {/* List */}
          <div className="p-4 flex-1 pb-24">
             <h3 className="text-sm font-semibold text-gray-400 mb-3 uppercase tracking-wider">Historial de compras</h3>
             {sortedReceipts.map(receipt => (
@@ -596,7 +593,6 @@ function App() {
             ))}
          </div>
 
-         {/* FAB */}
          <div className="fixed bottom-6 right-6">
             <button 
               onClick={() => fileInputRef.current?.click()}
@@ -611,7 +607,6 @@ function App() {
 
   const renderDashboard = () => (
     <div className="min-h-screen bg-[#f8f9fa] flex flex-col pb-24">
-      {/* Minimal Header */}
       <div className="px-6 pt-12 pb-6 bg-white sticky top-0 z-10">
         <div className="flex justify-between items-center mb-6">
           <div>
@@ -639,7 +634,6 @@ function App() {
           </div>
         </div>
 
-        {/* Search */}
         <div className="relative">
           <Search className="absolute left-3 top-3.5 text-gray-400 w-5 h-5" />
           <input 
@@ -652,7 +646,6 @@ function App() {
         </div>
       </div>
 
-      {/* Store Grid */}
       <div className="px-4 pt-4 flex-1">
         {storeNames.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-gray-400 opacity-60">
@@ -694,7 +687,6 @@ function App() {
         )}
       </div>
 
-      {/* Floating Action Button */}
       <div className="fixed bottom-6 left-0 right-0 flex justify-center z-20 pointer-events-none">
         <div className="pointer-events-auto shadow-2xl shadow-indigo-300/50 rounded-full">
           <button 

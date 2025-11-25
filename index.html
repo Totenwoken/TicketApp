@@ -16,7 +16,6 @@
     <link rel="manifest" href="/manifest.json">
 
     <!-- App Icon - Standard & iOS -->
-    <!-- Usamos el PNG externo para asegurar compatibilidad con iOS que a veces falla con Data URIs -->
     <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/10606/10606037.png" />
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/10606/10606037.png">
 
@@ -25,11 +24,9 @@
       body {
         -webkit-tap-highlight-color: transparent;
         background-color: #f3f4f6;
-        /* Safe area for iPhone X+ */
         padding-top: env(safe-area-inset-top);
         padding-bottom: env(safe-area-inset-bottom);
       }
-      /* Hide scrollbar for clean mobile look */
       .no-scrollbar::-webkit-scrollbar {
         display: none;
       }
@@ -37,7 +34,6 @@
         -ms-overflow-style: none;
         scrollbar-width: none;
       }
-      /* Smooth transitions */
       .animate-fade-in {
         animation: fadeIn 0.2s ease-in-out;
       }
@@ -49,12 +45,12 @@
 <script type="importmap">
 {
   "imports": {
+    "vite": "https://aistudiocdn.com/vite@^7.2.4",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.554.0",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
     "react": "https://aistudiocdn.com/react@^19.2.0",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "react/": "https://aistudiocdn.com/react@^19.2.0/",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
-    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.554.0",
-    "vite": "https://aistudiocdn.com/vite@^7.2.4",
     "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1"
   }
 }
@@ -62,7 +58,6 @@
 </head>
   <body>
     <div id="root"></div>
-    <!-- Punto de entrada para Vite -->
     <script type="module" src="/index.tsx"></script>
   </body>
 </html>
