@@ -39,4 +39,7 @@ export interface User {
   passwordHash: string;
   name: string;
   createdAt: number;
+  // Security fields for recovery
+  securityQuestion?: string;
+  securityAnswerHash?: string;
 }

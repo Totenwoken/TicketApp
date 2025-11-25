@@ -1,7 +1,7 @@
 import { ReceiptData, User } from '../types';
 
 const DB_NAME = 'TicketKeeperDB';
-const DB_VERSION = 3; // Incremented to add userEmail index
+const DB_VERSION = 4; // Incremented to add updateUser support logic if needed
 
 const openDB = (): Promise<IDBDatabase> => {
   return new Promise((resolve, reject) => {
@@ -20,7 +20,6 @@ const openDB = (): Promise<IDBDatabase> => {
         receiptStore = transaction?.objectStore('receipts');
       }
 
-      // Add userEmail index if it doesn't exist (Migration logic)
       if (receiptStore && !receiptStore.indexNames.contains('userEmail')) {
         receiptStore.createIndex('userEmail', 'userEmail', { unique: false });
       }
@@ -55,7 +54,6 @@ export const saveReceipt = async (receipt: ReceiptData): Promise<void> => {
   });
 };
 
-// Now filters by the logged-in user's email
 export const getReceiptsByUser = async (userEmail: string): Promise<ReceiptData[]> => {
   const db = await openDB();
   return new Promise((resolve, reject) => {
@@ -66,7 +64,6 @@ export const getReceiptsByUser = async (userEmail: string): Promise<ReceiptData[
 
     request.onsuccess = () => {
       const results = request.result as ReceiptData[];
-      // Sort by date (newest first) in memory since we used the email index
       results.sort((a, b) => b.createdAt - a.createdAt);
       resolve(results);
     };
@@ -106,6 +103,18 @@ export const createUser = async (user: User): Promise<void> => {
       }
     };
     checkRequest.onerror = () => reject(checkRequest.error);
+  });
+};
+
+export const updateUser = async (user: User): Promise<void> => {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(['users'], 'readwrite');
+    const store = transaction.objectStore('users');
+    const request = store.put(user); // Put updates existing if key matches
+
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
   });
 };
 
